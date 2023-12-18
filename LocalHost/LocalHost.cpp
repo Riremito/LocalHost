@@ -1,13 +1,17 @@
-#include<ws2spi.h> // this needs to include before including Windows.h
+#include<ws2spi.h> // do not move this include
 #include"../Share/Simple/Simple.h"
 #include"../Share/Hook/SimpleHook.h"
 #pragma comment(lib, "ws2_32.lib")
 
 
-bool useAuthHook = false; // Auth Hook, GMS and MSEA needs to use this method
+// this is called Auth Hook (idk why), GMS, MSEA and newer version of JMS require this method
+// if you get crash 30 seconds after you run client, try enabling this flag
+bool useAuthHook = false;
 WSPPROC_TABLE g_ProcTable = { 0 }; // AuthHook
 DWORD PrivateServerIP = 0x0100007F; // 127.0.0.1
-DWORD OfficialServerIP = 0; // 13.112.241.65, 18.179.64.209
+DWORD OfficialServerIP = 0;
+bool useFixedPortNumber = false;
+WORD FixedPortNumber = 8484;
 
 void Redirect(sockaddr_in *name) {
 	// port
@@ -21,6 +25,11 @@ void Redirect(sockaddr_in *name) {
 	std::wstring pserver = std::to_wstring(name->sin_addr.S_un.S_un_b.s_b1) + L"." + std::to_wstring(name->sin_addr.S_un.S_un_b.s_b2) + L"." + std::to_wstring(name->sin_addr.S_un.S_un_b.s_b3) + L"." + std::to_wstring(name->sin_addr.S_un.S_un_b.s_b4) + L":" + std::to_wstring(wPort);
 
 	DEBUG(L"[Redirect][" + server + L" -> " + pserver + L"]");
+
+	if (useFixedPortNumber) {
+		name->sin_port = htons(FixedPortNumber);
+		DEBUG(L"[Redirect_Port][" + std::to_wstring(wPort) + L" -> " + std::to_wstring(FixedPortNumber) + L"]");
+	}
 }
 
 void PeerNameBypass(sockaddr_in *name) {
@@ -36,6 +45,7 @@ void PeerNameBypass(sockaddr_in *name) {
 	DEBUG(L"[PeerNameBypass][" + server + L" -> " + oserver + L"]");
 }
 
+// nexon is watching private server players
 bool IsWebPort(sockaddr_in *name) {
 	WORD wPort = ntohs(name->sin_port);
 
@@ -92,7 +102,6 @@ int WINAPI WSPStartup_Hook(WORD wVersionRequested, LPWSPDATA lpWSPData, LPWSAPRO
 }
 
 bool Hook() {
-	// if you get crash after 30 seconds after connecting to login server, you need to use authhook
 	if (useAuthHook) {
 		HMODULE hDll = GetModuleHandleW(L"mswsock.dll");
 		if (!hDll) {
@@ -123,7 +132,7 @@ bool Hook() {
 
 bool LocalHost(HMODULE hDll) {
 	Config conf(INI_FILE_NAME, hDll);
-	std::wstring wServerIP, wAuthHook;
+	std::wstring wServerIP, wAuthHook, wFixedPortNumber;
 
 	bool check = true;
 	check &= conf.Read(DLL_NAME, L"ServerIP", wServerIP);
@@ -133,6 +142,16 @@ bool LocalHost(HMODULE hDll) {
 		if (_wtoi(wAuthHook.c_str())) {
 			useAuthHook = true;
 			DEBUG(L"AuthHook On");
+		}
+	}
+
+	if (conf.Read(DLL_NAME, L"FixedPortNumber", wFixedPortNumber)) {
+		// not 0
+		WORD port = _wtoi(wFixedPortNumber.c_str());
+		if (port) {
+			useFixedPortNumber = true;
+			FixedPortNumber = port;
+			DEBUG(L"FixedPortNumber = " + std::to_wstring(FixedPortNumber));
 		}
 	}
 
