@@ -3,9 +3,6 @@
 #include"../Share/Hook/SimpleHook.h"
 #pragma comment(lib, "ws2_32.lib")
 
-
-// this is called Auth Hook (idk why), GMS, MSEA and newer version of JMS require this method
-// if you get crash 30 seconds after you run client, try enabling this flag
 bool useAuthHook = false;
 WSPPROC_TABLE g_ProcTable = { 0 }; // AuthHook
 DWORD PrivateServerIP = 0x0100007F; // 127.0.0.1
@@ -89,7 +86,6 @@ int WINAPI WSPConnect_Hook(SOCKET s, sockaddr_in *name, int namelen, LPWSABUF lp
 	return g_ProcTable.lpWSPConnect(s, (sockaddr *)name, namelen, lpCallerData, lpCalleeData, lpSQOS, lpGQOS, lpErrno);
 }
 
-//decltype(WSPStartup) *_WSPStartup = NULL;
 decltype(WSPStartup) *_WSPStartup = NULL;
 int WINAPI WSPStartup_Hook(WORD wVersionRequested, LPWSPDATA lpWSPData, LPWSAPROTOCOL_INFOW lpProtocolInfo, WSPUPCALLTABLE UpcallTable, LPWSPPROC_TABLE lpProcTable) {
 	int ret = _WSPStartup(wVersionRequested, lpWSPData, lpProtocolInfo, UpcallTable, lpProcTable);
@@ -179,4 +175,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 		Hook();
 	}
 	return TRUE;
+}
+
+DWORD __stdcall FakeExport() {
+	return 0x1337;
 }
